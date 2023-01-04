@@ -36,5 +36,12 @@ test <- steps_df_int[steps_df_int$steps_mean == max(steps_df_int$steps_mean),1]
 The interval with the most steps on average is `r test`.
 
 ```{r echo=F, message=FALSE, warning=FALSE, paged.print=FALSE}
+data2 <- data
+data2$steps <- apply(data, 1, function(x) steps_df_int$steps_mean[steps_df_int$interval == gsub(x['interval'], pattern = ' ', replacement = '')])
+steps_df2_day <- data2 %>% 
+  group_by(date) %>% 
+  summarise(steps_sum = sum(steps, na.rm = T), steps_mean = mean(steps, na.rm=T), steps_med = median(steps, na.rm=T))
 
+mean_tot_steps_day <- round(mean(steps_df_day$steps_sum, na.rm = T), digits = 0) 
+med_tot_steps_day <- median(steps_df_day$steps_sum, na.rm =T)
 ```
