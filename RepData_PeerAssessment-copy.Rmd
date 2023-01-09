@@ -1,0 +1,97 @@
+---
+title: "RepData_PeerAssessment"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(dplyr)
+library(xtable)
+#get the data
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", destfile = "activity.zip")
+unzip(zipfile = "activity.zip",exdir = "./data")
+#Load in the data
+data <- read.table(file = "./data/activity.csv", sep = ",", header = TRUE)
+
+#Set up a dataframe to sum the steps by dates accross all intervals
+steps_df_day <- data %>% 
+  group_by(date) %>% 
+  summarise(steps_sum = sum(steps, na.rm = T), steps_mean = mean(steps, na.rm=T), steps_med = median(steps, na.rm=F))
+
+#Calculate mean and median to be inserted into the text later
+mean_tot_steps_day <- round(mean(steps_df_day$steps_sum, na.rm = T), digits = 0) 
+med_tot_steps_day <- median(steps_df_day$steps_sum, na.rm =T)
+```
+
+The mean of the total steps per day `r mean_tot_steps_day` is and the median is `r med_tot_steps_day`.
+
+```{r echo=T, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#print the histogram of the sum of steps by days
+hist(steps_df_day$steps_sum, xlab = "Total steps", main = "")
+```
+
+```{r echo=T, message=FALSE, warning=FALSE, paged.print=FALSE}
+
+#calculate the sum of steps by interval across all days
+steps_df_int <- data %>% 
+  group_by(interval) %>% 
+  summarise(steps_sum = sum(steps, na.rm = T), steps_mean = mean(steps, na.rm=T), steps_med = median(steps, na.rm=T))
+
+#Plot the avg steps per day and annotate the plot
+plot(steps_df_int$steps_mean, x= steps_df_int$interval, type = "l", xlab = "Interval", ylab = "Mean of steps", main = "Average steps per interval accross all days")
+
+#Identify the interval with the most steps throughout the day
+test <- steps_df_int[steps_df_int$steps_mean == max(steps_df_int$steps_mean),1]
+```
+
+The interval with the most steps on average is `r test`.
+
+```{r echo=T, message=FALSE, warning=FALSE, paged.print=FALSE}
+#Set up a copy of the initial data to not corrupt the og data set
+data2 <- data
+
+#Fill in the NA values by taking the mean fo the corresponding interval, which has been calculated earlier
+data2$steps <- 
+  #Apply over the rows a function
+  apply(data2, 1, function(x) as.numeric(
+    ifelse(
+      #verify whether there is actually an NA value. If so take the mean for the interval from the previously calculated list
+      is.na(x[1]),steps_df_int$steps_mean[steps_df_int$interval == as.integer(x[3])],x[1])
+    )
+    )
+
+#Recalculate a summary dataframe
+steps_df_day2 <- data2 %>% 
+  group_by(date) %>% 
+  summarise(steps_sum = sum(steps, na.rm = T), steps_mean = mean(steps, na.rm=T), steps_med = median(steps, na.rm=F))
+
+#Calculate the new mean and median for the steps by day acrosse the intervals 
+mean_tot_steps_day2 <- round(mean(as.integer(steps_df_day2$steps_sum), na.rm = T), digits = 0)
+med_tot_steps_day2 <- median(as.integer(steps_df_day2$steps_sum), na.rm =T)
+```
+
+After filling in the NA values with the mean per interval the mean of the total steps per day `r mean_tot_steps_day2` is and the median is `r med_tot_steps_day2`.
+
+```{r echo=T, message=TRUE, warning=TRUE, paged.print=TRUE}
+hist(steps_df_day2$steps_sum, main ="Adjusted Histogram of Steps", xlab = "Adj. Sum of steps")
+```
+
+```{r echo=T, message=TRUE, warning=TRUE, paged.print=TRUE}
+library(ggplot2)
+#Setup a list to identify weekdays 
+wd <- c("Friday",    "Monday",    "Thursday",  "Tuesday",   "Wednesday")
+wd <- as.list(wd)
+
+#Add factor for weekend and weekdays 
+data2$weekday <- factor(weekdays(as.POSIXct(data2$date)) %in% wd, labels = c("Weekend", "Weekday"))
+
+#Plot the sum of steps per interval and split into weekend and weekday plot. Then annotate the resulting plot
+ggplot(data = data2 %>% 
+         group_by(weekday, interval) %>% 
+         summarise(steps_sum = sum(steps)), aes(x = interval, y = steps_sum)) +
+  geom_line() + 
+  facet_grid(weekday ~ ., scales = "fixed") + 
+  xlab("Interval") + 
+  ylab("Sum of steps")
+```
